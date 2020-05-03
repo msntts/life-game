@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <link rel="stylesheet" href="game_main.css" type="text/css">
+  <script type="text/javascript">
+    var board;
+    var timer;
+    var ROW_RANGE = 20;
+    var COLUMN_RANGE = 20;
+    var ALIVE = 1;
+    var DEAD = 0;
+
+    function init() {
+      // データ配列初期化
+      {
+        board = new Array(ROW_RANGE);
+        for (let row = 0; row < ROW_RANGE; ++row) {
+          board[row] = new Array(COLUMN_RANGE);
+
+          for (let col = 0; col < COLUMN_RANGE; ++col) {
+            board[row][col] = {};
+            board[row][col].current = DEAD;
+            board[row][col].next = DEAD;
+          }
+        }
+      }
+
+      // HTML Table初期化
+      {
+        let table = '<table id="main_table">';
+
+        for (let row = 0; row < ROW_RANGE; ++row) {
+          table += '<tr>';
+
+          for (let col = 0; col < COLUMN_RANGE; ++col) {
+            table += '<td class="game_cell" onclick="updateCell(this,' + row.toString() + ',' + col.toString() + ')"></td>';
+          }
+
+          table += '</tr>';
+        }
+
+        table += '</table>';
+
+        let game_main = document.createElement('div');
+        game_main.innerHTML = table;
+        document.getElementById('game_frame').appendChild(game_main);
+      }
+    }
+
+    /**
+     * セルの生死を更新する。
+     * self : html tableセル
+     * row : number 更新行
+     * col : number 更新列 
+     */
+    function updateCell(self, row, col) {
+      if (board[row][col].current == ALIVE) {
+        board[row][col].current = DEAD;
+      }
+      else {
+        board[row][col].current = ALIVE;
+      }
+
+      updateTableCell(self, row, col);
+    }
+
+    /**
+     * 指定したセルの状態に合わせて表示を更新する。
+     * ALIVE: #000000、DEAD: f0f0f0
+     * self : html tableセル
+     * row : number 更新行
+     * col : number 更新列 
+     */
+    function updateTableCell(self, row, col) {
+      if (board[row][col].current == ALIVE) {
+        self.style.backgroundColor = '#000000';
+      }
+      else {
+        self.style.backgroundColor = '#f0f0f0';
+      }
+    }
+
+    /**
+     * セルの状態に合わせて全セルの表示を更新する。
+     */
+    function updateAllTableCells() {
+      let tbl = document.getElementById('main_table');
+
+      for (let row = 0; row < ROW_RANGE; ++row) {
+        for (let col = 0; col < COLUMN_RANGE; ++col) {
+          updateTableCell(tbl.rows[row].cells[col], row, col);
+        }
+      }
+    }
+
+    /**
+     * Life Gameを開始する。
+     * 500ms周期で世代を進める。
+     */
+    function start() {
+      tmer = setTimeout(lifeGameMain, 500 /* ms */);
+
+      let startBtn = document.getElementById('start_button');
+      startBtn.disabled = true;
+      let stopBtn = document.getElementById('stop_button');
+      stopBtn.disabled = false;
+      let clearBtn = document.getElementById('clear_button');
+      clearBtn.disabled = true;
+    }
+
+    /**
+     * Life Gameを止める。表示はそのまま。
+     */
+    function stop() {
+      clearTimeout(timer);
+
+      let startBtn = document.getElementById('start_button');
+      startBtn.disabled = false;
+      let stopBtn = document.getElementById('stop_button');
+      stopBtn.disabled = true;
+      let clearBtn = document.getElementById('clear_button');
+      clearBtn.disabled = false;
+    }
+
+    /**
+     * Life Gameを初期化する。
+     */
+    function cleanup() {
+      for (let row = 0; row < ROW_RANGE; ++row) {
+        for (let col = 0; col < COLUMN_RANGE; ++col) {
+          board[row][col].current = DEAD;
+          board[row][col].next = DEAD;
+        }
+      }
+
+      updateAllTableCells();
+    }
+
+    /**
+     * Life Gameのエントリ。
+     * 各セルの世代を進めて、表示を更新。
+     * 更新後、自身を500ms後に呼び出すタイマをセットする。
+     */
+    function lifeGameMain() {
+      // 全セルの次世代の生死を判定する
+      for (let row = 0; row < ROW_RANGE; ++row) {
+        for (let col = 0; col < COLUMN_RANGE; ++col) {
+          rule(row, col);
+        }
+      }
+
+      // 世代を進める
+      goNextStep();
+
+      // 表示を更新
+      updateAllTableCells();
+
+      timer = setTimeout(lifeGameMain, 500 /* ms */);
+    }
+
+    /**
+     * セルの生死を次世代に進める。(nextをcurrentにコピー)
+     * 次世代はDEADで初期化。
+     */
+    function goNextStep() {
+      for (let row = 0; row < ROW_RANGE; ++row) {
+        for (let col = 0; col < COLUMN_RANGE; ++col) {
+          board[row][col].current = board[row][col].next;
+          board[row][col].next = DEAD;
+        }
+      }
+    }
+
+    /**
+     * Life Gameのルールを指定したセルに適用し、セルの次世代の生死をnextへ詰める
+     * row : number 更新行
+     * col : number 更新列 
+     */
+    function rule(row, col) {
+      let aliveCellNum = 0;
+
+      // 8近傍のセルの生存状況をカウント
+      for (let diff_r = -1; diff_r <= 1; ++diff_r) {
+        for (let diff_c = -1; diff_c <= 1; ++diff_c) {
+          // 8近傍セルが表示範囲内かつ自身のセルじゃない?
+          if (((row + diff_r) >= 0 && (col + diff_c) >= 0) &&
+            ((row + diff_r) < ROW_RANGE && (col + diff_c) < COLUMN_RANGE) &&
+            (diff_c != 0 || diff_r != 0)) {
+            // 近傍セルが生きていたらカウント
+            if (board[row + diff_r][col + diff_c].current == ALIVE) {
+              aliveCellNum += 1;
+            }
+          }
+        }
+      }
+
+      // 現世代で死んでいるセル
+      // 近郷セルが3つ生きている場合=生存
+      // それ以外=死
+      if (board[row][col].current == DEAD) {
+        if (aliveCellNum == 3) {
+          board[row][col].next = ALIVE;
+        }
+        else {
+          board[row][col].next = DEAD;
+        }
+      }
+      else {
+        // 現世代で生きているセル
+        // 近傍セルが2or3生きている場合＝生存
+        // それ以外＝死
+        if (aliveCellNum == 2 || aliveCellNum == 3) {
+          board[row][col].next = ALIVE;
+        }
+        else {
+          board[row][col].next = DEAD;
+        }
+      }
+    }
+  </script>
+</head>
+
+<body onload="init()">
+  <div id="button_box">
+    <input type="button" id="start_button" value="Start" onclick="start()" />
+    <input type="button" id="stop_button" value="Stop" onclick="stop()" disabled />
+    <input type="button" id="clear_button" value="Clear" onclick="cleanup()" />
+  </div>
+  <div id="game_frame"></div>
+</body>
+
+</html>

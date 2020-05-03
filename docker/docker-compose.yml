@@ -1,0 +1,11 @@
+version: '2'
+services: 
+  electron-dev:
+    build:
+      context: .
+    container_name: "electron_dev"
+    tty: true
+    privileged: true
+    volumes:
+      - ../src:/home/docker/app/src
+    working_dir: /home/docker/app/src
